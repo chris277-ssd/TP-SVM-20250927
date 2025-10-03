@@ -1,0 +1,424 @@
+---
+title: "TP  Support Vector Machine (SVM)"
+author: "C de la Chapelle"
+format: pdf
+editor: visual
+---
+
+## Introduction
+
+Ce TP est une application du cours du 24 Septembre dans le lequel il est présenté la séparation ou classification de données binaires par la méthode d'apprentissage SVM ou Machine à vecteurs supports.
+
+Les données observées sont des couples de variables (xi1, yi) et sont séparables par un hyperplan sous la contrainte de maximiser les marges entre l'hyperplan est les données les plus proches.
+
+Selon la natures des données, la séparation entre les données est par exemple, si on se limite à 3 variables descriptives, plane ou courbe comme sphérique ou parabolique. Pour ce ramener à un problème linéaire, on utilise des fonctions noyau permettant de lineariser au mieux les données.
+
+Dans ce TP, la bibliothèque python sklearn permettant de régler le paramètre C qui contrôle la complexité du classifieur car C détermine le coût d’une mauvaise classification : plus C est grand, plus la règle obtenue est complexe (le nombre de points pour lesquels on veut minimiser l'erreur de classification croît). Cette approche est appelée C-classification et s’utilise avec l'objet sklearn.svm.SVC dans le module scikit-learn.
+
+Deux scriptes python sont associés à ce TP, svm_script.py, qu'il à fallu compléter et svm_source.py qui contient des fonctions utiles au premier script.
+
+## Question 1 :
+
+Le TP commence par un exemple de 2 distributions gaussiennes un peu différentes. Très utile pour présenter le formalisme des les fonctions de Sklearn pour un débutant en Python. Connaissant le C++, le Pascal et ayant déjà vu du code, pas trop de difficultés dans ce TP mais aucune finesse dans python.
+
+On importe Iris facilement car il est contenu dans les Packages chargés en début. Il s'agit des dimensions morphologiques des fleurs d'iris de 3 variétés sous formes 50 individus en lignes par variétés (soit 150 lignes) et 4 variables morphologies en colonnes (détails en commentaire)
+
+```{python}
+#| eval: false
+#| include: false
+iris = datasets.load_iris()
+X = iris.data # [150x4] 1ere 50 lignes variétés setosa , 51 : versicolor, 101 : virginica = variable varietés
+#4 colonnes, 'sepal length (cm)', 'sepal width (cm)', 'petal length (cm)', 'petal width (cm)'
+y = iris.target #0 : setosa, 1: versicolor,  2: virginica
+X = scaler.fit_transform(X, y=y) # toutes Les données sont centrées réduites
+X = X[y != 0, :2]
+y = y[y != 0] # il va donc rester: sepal length (cm)', 'sepal width (cm)' en colonne et 50 lignes versicolor puis 50 lignes virginica
+#le but de la manip va être de distinguer la largeur de la longueur des sépales, especes mélangées
+y = np.where(y == 1, -1, +1)   # classe 1 -> -1, classe 2 -> +1
+```
+
+On travaille sur les 2 premières variables (en colonnes, "sepal length (cm)', 'sepal width (cm)") et les pour les variétés (y), on exclue la premières variété. Les longueurs des variables X sont centrées réduites, les y variables nominales convertis en quantitatives centrée (+/- 1). Enfin, les échantillons train et test sont réalisés en ajoutant de l'aléatoire pour une meilleur indépendance des individus :
+
+```{python}
+#| eval: false
+#| include: false
+Xs,ys=shuffle(X,y,random_state=0) # mélange des X syncho avec celui des y et remélange :
+X_train, X_test, y_train, y_test = train_test_split(Xs, ys, test_size=0.25, random_state=42)
+```
+
+Dn étant ici (X-train, y_train). On procède alors à la modélisation sur l'échantillon train avec un noyau linéaire. Mais avant regardons l'allure des données :
+
+![](images/clipboard-1314541923.png)
+
+Il est évident que la séparation des variables ne sera pas facile. On procède alors à l’apprentissage du modèle en version linéaire avec recherche de meilleur paramètre C à l'aide d'une grille de valeurs et une optimisation par validation croisée :
+
+```{python}
+#| eval: false
+#| include: false
+parameters = {'kernel': ['linear'], 'C': list(np.logspace(-3, 3, 200))}
+clf3 = SVC()
+clf_linear = GridSearchCV(clf3, parameters, n_jobs=-1, cv=10)
+clf_linear.fit(X_train, y_train)
+```
+
+On obtient les scores suivant sur l'échantillon d’entraînement de test ainsi que le paramètres C utilisé :
+
+Meilleur paramètre C : 0.03962
+
+|                                         |                  |               |
+|-----------------------------------------|------------------|---------------|
+| Generalization score for linear kernel: | `Train : 0.6933` | `Test : 0.68` |
+
+Le score de l'échantillon train montre des valeurs proche de 70% avec des résultats presque aussi bon pour l’échantillon test. On pouvait s'y attendre au vue du nuage de points.
+
+## Question 2 :
+
+On procède de même mais avec un noyau polynomial :
+
+```{python}
+#| eval: false
+#| include: false
+Cs = list(np.logspace(-3, 3, 5))
+gammas = 10. ** np.arange(1, 2)
+degrees = np.r_[1, 2, 3]
+clf4 = SVC()
+parameters = {'kernel': ['poly'], 'C': Cs, 'gamma': gammas, 'degree': degrees}
+clf_poly =GridSearchCV(clf4, parameters, n_jobs=-1, cv=10,)
+clf_poly.fit(X_train, y_train)
+```
+
+Et les résultats :
+
+Meilleur parmètre C : 0.03962688638701478 ,
+
+|                                             |              |             |
+|---------------------------------------------|--------------|-------------|
+| Generalization score for polynomial kernel: | Train : 0.72 | Test : 0.76 |
+
+On note une amélioration modérée de la séparation des variables. On "hyperplan courbe" est évidemment plus adapté à la distribution des données mais les points sont tout de même fortement "mélangés" et un séparation complète des variables semble bien compliquée.
+
+Pour conclure la question, l'illustration graphique :
+
+![](images/clipboard-906893122.png)
+
+On voit que le gain est faible avec le modèle polynomial.
+
+## Question 3 :
+
+La pratique de SVM_GUI n'a montrée aucune interactivité sur mon navigateur (Edge). Mais quelques essais on réussit.
+
+On génére un jeu de données très déséquilibré avec beaucoup plus de points dans une classe que dans l’autre ici ( 92% vs 8%).
+
+```{python}
+#| eval: false
+#| include: false
+n3 = 500
+n4 = 40
+mu1 = [1., 1.]
+mu2 = [-1./2, -1./2]
+sigma1 = [0.9, 0.9]
+sigma2 = [0.9, 0.9]
+X2, y2 = rand_bi_gauss(n3, n4, mu1, mu2, sigma1, sigma2)
+```
+
+![](images/clipboard-3639182732.png)
+
+On procède de même que précédemment en paramètres par défaut avec un noyau linéaire :
+
+```{python}
+#| eval: false
+#| include: false
+X_train, X_test, y_train, y_test = train_test_split(X2, y2, test_size=0.25, random_state=42)
+
+#C=1 par défaut
+clf5 = SVC(kernel='linear')
+clf5.fit(X_train, y_train)
+clf5.fit_status_
+print('Score : %s' % clf5.score(X_test, y_test))
+```
+
+Et le résultat sur l'échantillon test :
+
+Score : 0.9407
+
+La performance est bonne mais voyons l'influence C sur ce score (arrondi à 10\^-2)
+
+```{python}
+#| eval: false
+#| include: false
+# Liste des valeurs de C à tester
+C_list = [0.01, 1, 100]
+
+# Taille de la figure
+plt.figure(figsize=(15, 5))
+
+for i, C in enumerate(C_list, 1):
+    # Créer et entraîner le classifieur
+    clf6 = SVC(kernel='linear', C=C)
+    clf6.fit(X_train, y_train)
+    
+    # Calculer le score / test
+    score = clf6.score(X_test, y_test)
+    
+    # Définir la fonction prédictive personnalisée
+    def f6(xx):
+        return clf6.predict(xx.reshape(1, -1))
+
+    # Sous-figure
+    plt.subplot(1, len(C_list), i)
+    frontiere(f6, X_train, y_train, w=None, step=50, alpha_choice=1)
+    plt.title(f"C = {C} | Score = {score:.2f}")
+
+plt.tight_layout()
+plt.show()
+```
+
+On obtient les représentations suivantes :
+
+![](images/clipboard-3989063959.png)
+
+C contrôle la pénalité sur les erreurs de classification.
+
+Quand C est très petit, le modèle tolère beaucoup d’erreurs pour maximiser la marge. Il préfère une marge large, même si cela signifie mal classer plusieurs points. Autrement dit, avec C = 0.01, le SVM devient très souple : il accepte que des points #soient mal classés pour obtenir une frontière plus “stable” ou “généreuse”. Si les classes ne sont pas parfaitement séparables, ou si tu as du bruit, le modèle peut même ignorer complètement la structure réelle des données. comme on le voit à gauche. Si C = 1 : pénalise les erreurs modérément.
+
+Si C = 100 : pénalise fortement les erreurs → le modèle essaie de tout classer parfaitement.
+
+Mais si les données sont déjà bien séparées, alors même un C modéré suffit à tracer une frontière quasi parfaite. Le modèle n’a pas besoin de forcer davantage, donc la frontière reste quasi identique.
+
+## Question 4 :
+
+On commence par l'importation des images à traiter. Le fichier et téléchargé, décompressé et le dossier obtenu est déplacé dans le répertoire des scriptes. Le scripte fourni récupère dans X les images et dans Y les noms et selectione uniquement les données Tony Blair et Colin Powell. Voici 12 images tirées de la base de photos :
+
+![](images/clipboard-276315124.png)
+
+Ensuite, on procède à la préparation des données. Les 3 canaux RVB des images sont moyennés ce qui conduit à une image en noir et blanc. Puis les données sont centrées réduites et enfin séparées en 2 échantillon Train et Test (50/50).
+
+On réalise des graphique du score et des erreurs en fonction C sur en premier l'échantillon apprentissage.
+
+```{python}
+#| eval: false
+#| include: false
+print("--- Linear kernel ---")
+print("Fitting the classifier to the training set")
+t0 = time()
+
+# fit a classifier (linear) and test all the Cs
+Cs = 10. ** np.arange(-5, 6)
+scores = []
+for C in Cs:
+    clf = SVC(kernel='linear', C=C)
+    clf.fit(X_train, y_train)
+    score = clf.score(X_test, y_test)
+    scores.append(score)
+ind = np.argmax(scores)
+print("Best C: {}".format(Cs[ind]))
+
+plt.figure()
+plt.plot(Cs, scores)
+plt.xlabel("Parametres de regularisation C")
+plt.ylabel("Scores d'apprentissage")
+plt.xscale("log")
+plt.tight_layout()
+plt.show()
+print("Best score: {}".format(np.max(scores)))
+
+print("Predicting the people names on the testing set")
+
+#Pour l'erreur c'est l'evenement contraire :
+errors = [1 - s for s in scores]
+
+plt.figure()
+plt.plot(Cs, errors, marker='o')
+plt.xscale("log")
+plt.xlabel("Paramètre de régularisation C (log)")
+plt.ylabel("Erreur de prédiction")
+plt.title("Erreur en fonction de C")
+plt.grid(True)
+plt.tight_layout()
+plt.show()
+Cs[2]
+t0 = time()
+
+```
+
+![](images/clipboard-899113342.png)ou
+
+![](images/clipboard-376221080.png)
+
+Les résultats :
+
+--- Linear kernel ---
+
+Fitting the classifier to the training set
+
+Best C: 0.001
+
+Best score: 0.8947
+
+On constate la présence du "coude" qui donne le meilleur compromis et que :
+
+-   C petit → marge large, plus d’erreurs → erreur élevée.
+-   C grand → modèle rigide, moins d’erreurs (mais attention à l’overfitting).
+-   Le minimum de la courbe donne le compromis optimal entre biais et variance.
+
+Puis on procède à la prédiction des noms sur l'échantillon test avec le meilleur paramètre C :
+
+```{python}
+#| eval: false
+#| include: false
+# predict labels for the X_test images with the best classifier
+clf = SVC(kernel='linear', C=Cs[ind])
+clf.fit(X_train, y_train)
+
+# Prédire les labels sur le jeu de test
+y_pred = clf.predict(X_test)
+
+
+print("done in %0.3fs" % (time() - t0))
+# The chance level is the accuracy that will be reached when constantly predicting the majority class.
+print("Chance level : %s" % max(np.mean(y), 1. - np.mean(y)))
+print("Accuracy : %s" % clf.score(X_test, y_test))
+
+#%%
+####################################################################
+# Qualitative evaluation of the predictions using matplotlib
+
+prediction_titles = [title(y_pred[i], y_test[i], names)
+                     for i in range(y_pred.shape[0])]
+
+plot_gallery(images_test, prediction_titles)
+plt.show()
+
+####################################################################
+# Look at the coefficients
+plt.figure()
+plt.imshow(np.reshape(clf.coef_, (h, w)))
+plt.show()
+```
+
+![](images/clipboard-4004885153.png)
+
+Et l'image modèle issue du fit :
+
+![](images/clipboard-727577046.png)
+
+Et les résultats de la console :
+
+-   Predicting the people names on the testing set
+-   done in 0.085s
+-   Chance level : 0.6210526315789474
+-   Accuracy : 0.8947368421052632
+
+On constate un très bon niveau de prédiction malgré des images par toujours centrée. C'est surprenant pour un débutant en IA.
+
+## Question 5 :
+
+On ajoute via des bruits gaussiens au images et on compare les résultats de SVM.
+
+```{python}
+#| eval: false
+#| include: false
+def run_svm_cv(_X, _y):
+    _indices = np.random.permutation(_X.shape[0])
+    _train_idx, _test_idx = _indices[:_X.shape[0] // 2], _indices[_X.shape[0] // 2:]
+    _X_train, _X_test = _X[_train_idx, :], _X[_test_idx, :]
+    _y_train, _y_test = _y[_train_idx], _y[_test_idx]
+
+    _parameters = {'kernel': ['linear'], 'C': list(np.logspace(-3, 3, 5))}
+    _svr = svm.SVC()
+    _clf_linear = GridSearchCV(_svr, _parameters, cv=10)
+    _clf_linear.fit(_X_train, _y_train)
+
+    print('Generalization score for linear kernel: %s, %s \n' %
+          (_clf_linear.score(_X_train, _y_train), _clf_linear.score(_X_test, _y_test)))
+
+print("Score sans variable de nuisance")
+run_svm_cv(X, y)
+# parfait sur les données d'entrainement et bon à très bon sur celles de test (50%)
+print("Score avec variable de nuisance")
+n_features = X.shape[1]
+# On rajoute des variables de nuisances
+sigma = 1
+noise = sigma * np.random.randn(n_samples, 300, ) 
+#with gaussian coefficients of std sigma
+X_noisy = np.concatenate((X, noise), axis=1)
+X_noisy = X_noisy[np.random.permutation(X.shape[0])]
+run_svm_cv(X_noisy,y)
+```
+
+On obtient les résultats suivant :
+
+|                                         |       |         |
+|-----------------------------------------|-------|---------|
+| Generalization score for linear kernel: | Train | Test    |
+| Score sans variable de nuisance         | 1.0   | 0.90526 |
+| Score avec variable de nuisance         | 1.0   | 0.50526 |
+
+On constate que l'ajout n'a pas d'effet sur l'échantillon d'apprentissage. On peut penser que le fit des images floues peut s'ajuster à ce qu'il voit. Par contre, sur les images inconnu floutées, c'est beaucoup plus difficile de les identifier.
+
+## Question 6 :
+
+L'idée est de procéder à une ACP sur les X bruités pour en sortir les composantes principales, les premières devant être informatives et celle de plus haut rang, être du bruit.
+
+Au vue de la question 7, on peut se demander, s'il faut faire l'ACP puis spliter l'échantillon ou faire le split puis 2 ACP pour le train et le test. Mon choix c'est porté sur le premier protocole avec souci de comparer des choses sur les mêmes composantes. Probablement, avec un biais ajouté.
+
+```{python}
+#| eval: false
+#| include: false
+components_list = [3, 8, 15, 20, 40]
+scores_train = []
+scores_test = []
+
+#definition des fonction de np
+parameters = {'kernel': ['linear'], 'C': list(np.logspace(-3, 3, 5))} 
+svr = svm.SVC()
+clf_lin = GridSearchCV(svr, parameters, cv=10)
+
+
+for n in components_list:
+    #print(n)
+    pca = PCA(n_components=n, svd_solver='randomized')
+    X_pca = pca.fit_transform(X_noisy)
+    #print(X_pca[1,:5])
+    # Séparation train/test
+    X_train, X_test, y_train, y_test = train_test_split(X_pca, y, test_size=0.5, random_state=None)
+
+    # Centrage et réduction des données avant SVC, les Y sont ok
+    X_train_pca = scaler.fit_transform(X_train)
+    X_test_pca = scaler.fit_transform(X_test)
+    #print(X_train_pca[1,:5])
+    clf_lin.fit(X_train_pca, y_train)
+    
+    scores_train.append(clf_lin.score(X_train_pca, y_train))
+    scores_test.append(clf_lin.score(X_test_pca, y_test))
+
+# Graphique des scores
+plt.figure(figsize=(8, 5))
+plt.plot(components_list, scores_train, marker='o', label='Score train')
+plt.plot(components_list, scores_test, marker='s', label='Score test')
+plt.xscale("log")
+plt.xlabel("Nombre de composantes PCA")
+plt.ylabel("Score de classification")
+plt.title("Impact de la réduction de dimension sur le SVM")
+plt.legend()
+plt.grid(True)
+plt.tight_layout()
+plt.show()
+
+#tableau des données pour controle des valeurs:
+print(components_list,scores_train,scores_test)
+```
+
+Le graphique avec en fonction de n composantes :
+
+![](images/clipboard-2112649119.png)
+
+D'abord, sans initialiser de graine, le graphique change à chaque fois. Néanmoins, pour l'échantillon train, on observe une amélioration modérée du score d'apprentissage jusqu'à une certaine valeur de n (CP) puis une baisse des performance. C'est normale, trop de composantes apporte du bruit.
+
+Pour l'échantillon test, globalement le score de reconnaissance diminue avec n qui augmente. Le maximum d'information est donc dans les premières composante. Entre n = 20 et 40 composante, on voit le score remonter. Ils y aurait donc des composantes informatives caché parmi celle de bruit et on peut penser que rapidement les composantes informatives et de bruits sont mélangées.
+
+On note une amélioration modérée dans l’identification des photos sur l'échantillon test qui au mieux est maintenant supérieure à 65% au lieu de 50 %
+
+## Question 7 :
+
+Le biais est introduit le centré-réduit avec le split des échantillon. De fait, il ne sont pas totalement indépendant, car normalisés avec des infos connues des 2...
